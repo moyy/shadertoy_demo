@@ -1,21 +1,31 @@
 /// 演示
 /// 
-/// + 圆 SDF
-/// + 分辨率 处理，1像素 表示
-/// + 抗锯齿 的 基本方法
-/// + glsl 基本函数: mix, step, clamp, smoothstep
+/// + if, step
+/// + mix 和 blend
+/// + 分辨率 处理
+/// 
 
 // ======================= 坐标-变换 ======================= 
 
-// 坐标 归一化，值域 [0, 1]^2
-vec2 norm(vec2 coord) {
-    return coord / iResolution.xy;
+// 1像素 对应的 uv 坐标
+float uv1() {
+    return 1.0 / max(iResolution.x, iResolution.y);
+}
+
+// 
+float uv(float pixel) {
+    return pixel * uv1();
+}
+
+// 1 像素 对应的 uv 比例
+vec2 uv(vec2 coord) {
+    return coord * uv1();
 }
 
 // ======================= Demo ======================= 
 
 // if 太多，不提倡
-float rectWithIf(vec2 coord, vec2 center, float extent)
+float quadWithIf(vec2 coord, vec2 center, float extent)
 {
     float d = 1.0;
 
@@ -31,7 +41,7 @@ float rectWithIf(vec2 coord, vec2 center, float extent)
 } 
 
 // if 太多，不提倡
-float rectWithExpr(vec2 coord, vec2 center, float extent)
+float quadWithExpr(vec2 coord, vec2 center, float extent)
 {
     float d = (coord.x < center.x - extent) ? 0.0 : ((coord.x > center.x + extent) ? 0.0 : 1.0);
     
@@ -41,7 +51,7 @@ float rectWithExpr(vec2 coord, vec2 center, float extent)
 }
 
 // 太复杂，不提倡
-float rectWithStep(vec2 coord, vec2 center, float extent)
+float quadWithStep(vec2 coord, vec2 center, float extent)
 {
     // 0.2 小于 x 返回 1，否则 返回 0
     float d = step(center.x - extent, coord.x);
@@ -55,28 +65,51 @@ float rectWithStep(vec2 coord, vec2 center, float extent)
 }
 
 // 差不多 就是 这种
-float rectWithAbs(vec2 coord, vec2 center, float extent)
+float quadWithAbs(vec2 coord, vec2 center, float extent)
 {
     vec2 d = step(abs(coord - center), vec2(extent));
     
     return d.x * d.y;
 }
 
+// 知识点1：像素 和 uv值的 转换
+// 知识点2：if 和 step
+// 知识点3：模拟 混合
 void mainImage( out vec4 fragColor, in vec2 fragCoord )
 {
-    vec2 coord = norm(fragCoord);
+    vec2 coord, center;
+    float r, extent;
 
-    float r;
+    // 问题：会随着 屏幕 变化，宽高比 会 产生变化
 
-    // 问题：会随着 屏幕 变化，宽高比 会 产生变化，解决方式 看 下一节
-
-    r = rectWithIf(coord, vec2(0.5), 0.2);
+    // [0, 1]
+    coord = fragCoord / iResolution.xy;
     
-    // r = rectWithExpr(coord, vec2(0.4), 0.2);
-    
-    // r = rectWithStep(coord, vec2(0.3), 0.2);
-    
-    // r = rectWithAbs(coord, vec2(0.5, 0.25), 0.2);
+    center = vec2(0.5);
+    extent = 0.05;
 
-    fragColor = vec4(r, 0.0, 0.0, 1.0);
+    // 问题 的 解答
+    
+    // [0, 1]
+    // coord = uv(fragCoord);
+    
+    // center = uv(vec2(0.5 * iResolution.xy));
+    // extent = uv(30.0);
+
+    r = quadWithIf(coord, center, extent);
+    
+    // r = quadWithExpr(coord, center, extent);
+    
+    // r = quadWithStep(coord, center, extent);
+    
+    // r = quadWithAbs(coord, center, extent);
+
+    // 模拟 blend
+    vec3 bg = vec3(1.0, 0.0, 0.0);
+    vec3 fg = vec3(0.0, 1.0, 1.0);
+
+    // mix(a, b, t) = 从 a -> b 线性过渡
+    vec3 c = mix(bg, fg, r);
+
+    fragColor = vec4(c, 1.0);
 }

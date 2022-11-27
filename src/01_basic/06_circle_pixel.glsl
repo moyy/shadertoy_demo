@@ -1,9 +1,9 @@
-// ======================= 实用方法 ======================= 
+/// 演示
+/// 
+/// + 圆 SDF
+/// + 抗锯齿 的 基本方法: clamp, smoothstep
+/// 
 
-// 2D 叉乘，正数 逆时针
-float cross2d(vec2 u, vec2 v) {
-    return u.x * v.y - u.y * v.x;
-}
 // ======================= 坐标-变换 ======================= 
 
 // 1像素 对应的 uv 坐标
@@ -48,40 +48,22 @@ vec2 scale(vec2 coord, vec2 s) {
     return coord / s;
 }
 
-vec2 rotate(vec2 pt, float rad) {
-    float c = cos(rad);
-    float s = sin(rad);
-    return mat2(c, -s, s, c) * pt;
-}
-
 // ======================= SDF ======================= 
-
-float sdfCircle(vec2 coord, float r) {
-    return length(coord) - r;
-}
-
-float sdfCircle(vec2 coord, vec2 center, float r) {
-    
-    coord = translate(coord, center);
-    
-    return sdfCircle(coord, r);
-}
 
 // r 半径
 // 返回：圆 sdf，里面为负数，外面为正数
 float sdfCircle(vec2 coord, vec2 center, vec2 s, float r) {
     
     coord = translate(coord, center);
-    
     coord = scale(coord, s);
+
+    // webrender 做法
+    float ds = sqrt(2.0) / length(fwidth(coord));
 
     float d = length(coord) - r;
 
     // 缩放比例 要 乘回去
     d *= min(s.x, s.y);
-    
-    // webrender 做法
-    // float ds = sqrt(2.0) / length(fwidth(coord));
     // d *= ds;
 
     return d;
@@ -123,34 +105,6 @@ void showClickSdf(out vec3 color, vec2 coord, vec2 center, vec2 s, float r) {
     }
 }
 
-// 画 坐标轴 网格
-vec3 showGrid(vec2 coord, float row, float column) {
-    coord = uv(coord);
-    coord = vec2(row, column) * coord;
-    
-    vec2 cell;
-    
-    // 每像素 的 宽度
-    vec2 ps = fwidth(coord);
-
-    cell = fract(coord);
-    cell = 1.0 - 2.0 * abs(cell - 0.5);
-    
-    vec3 color = vec3(0.0);
-    if (cell.x < 2.0 * ps.x || cell.y < ps.y) {
-        color = vec3(1.0);
-    }
-
-    if (abs(coord.x) < ps.x) {
-        color = vec3(1.0, 0.0, 0.0);
-    }
-    if (abs(coord.y) < ps.y) {
-        color = vec3(0.0, 1.0, 0.0);
-    }
-
-    return color;
-}
-
 // ======================= 抗锯齿 ======================= 
 
 // 抗锯齿 方法 1
@@ -186,8 +140,10 @@ float aa_4(float d) {
     return clamp(0.5 - 0.5 * d, 0.0, 1.0);
 }
 
-// ================ Demo
+// ======================= Demo ======================= 
 
+// 知识点1：缩放系数下的抗锯齿
+// 知识点2：非均匀缩放下的 sdf 问题
 void mainImage( out vec4 fragColor, in vec2 fragCoord )
 {
     vec2 coord = fragCoord;
@@ -198,8 +154,18 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     float r, a;
     vec2 s;
 
-    r = 5.0;
-    s = vec2(1.0 * 30.0, 1.0 * 30.0);
+    r = 150.0;
+    s = vec2(1.0);
+
+    // 缩放系数下 的 抗锯齿
+    // 常见的变换中，只有 scale 会 改变 面积
+    
+    // r = 5.0;
+    // s = vec2(1.0 * 30.0, 1.0 * 30.0);
+
+    // 非均匀缩放
+    // r = 5.0;
+    // s = vec2(1.0 * 20.0, 3.0 * 20.0);
 
     // d < 0 表示 在里面
     // 在 uv 坐标系下的 sdf
@@ -208,12 +174,20 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     // 单位是像素，天然抗锯齿
     a = -d;
     
-    vec3 bg = vec3(1.0, 0.0, 0.0);
+    // a = aa_1(d);
+    
+    // a = aa_2(d);
+    
+    // a = aa_3(d);
+
+    // a = aa_4(d);
+
+    vec3 bg = vec3(0.0, 0.0, 0.0);
     vec3 fg = vec3(1.0, 1.0, 1.0);
     
+    // mix(a, b, t) t = 0 返回 a; t = 1 返回 b
     vec3 color = mix(bg, fg, a);
 
-    // 等高线
     // color = isovalue(d);
     // showClickSdf(color, coord, center, s, r);
 

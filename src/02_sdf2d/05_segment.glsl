@@ -1,17 +1,3 @@
-// 椭圆 sdf 的 精确计算 和 近似模拟 https://iquilezles.org/articles/ellipsedist/
-
-// 上篇文章的 shader 实现 https://www.shadertoy.com/view/4lsXDN
-
-// 椭圆 sdf 的 另一种 估算法 https://blog.chatfield.io/simple-method-for-distance-to-ellipse/
-
-// 上篇文章的 去三角函数 的 版本 https://github.com/0xfaded/ellipse_demo/issues/1
-
-// 上篇文章的 shader 实现 https://www.shadertoy.com/view/tttfzr
-
-// 点到 椭圆 距离 的 数学推导 和 估算框架 https://www.geometrictools.com/Documentation/DistancePointEllipseEllipsoid.pdf
-    
-
-
 // ======================= 实用方法 ======================= 
 
 // 2D 叉乘，正数 逆时针
@@ -68,7 +54,139 @@ vec2 rotate(vec2 pt, float rad) {
     return mat2(c, -s, s, c) * pt;
 }
 
+// dir = vec2(cos, sin)
+vec2 rotate(vec2 pt, vec2 dir) {
+    return mat2(dir.x, -dir.y, dir.y, dir.x) * pt;
+}
+
+// ======================= 组合 ======================= 
+
+// 补集
+float complementSdf(float sdf) {
+    return -sdf;
+}
+
+// 并集
+float unionSdf(float sdf1, float sdf2) {
+    return min(sdf1, sdf2);
+}
+
+// 交集
+float intersectionSdf(float sdf1, float sdf2) {
+    return max(sdf1, sdf2);
+}
+
+// 差集 sdf1 - sdf2
+float differenceSdf(float sdf1, float sdf2) {
+    return max(sdf1, -sdf2);
+}
+
+// 环
+float annularSdf(float sdf, float radius) {
+    radius *= 0.5;
+    
+    return max(sdf - radius, - sdf - radius);
+}
+
+float smin(float a, float b, float k) {
+     
+     float h = clamp(0.5 + 0.5 * (a - b) / k, 0.0, 1.0);
+     
+     return mix(a, b, h) - k * h * (1.0 - h);
+}
+
+
+float smax(float a, float b, float k) {
+     return -smin(-a, -b, k);
+}
+
+// 平滑-并集 smin
+// https://zhuanlan.zhihu.com/p/246501223)
+float sunionSdf(float sdf1, float sdf2, float k) {
+    return smin(sdf1, sdf2, k);
+}
+
+// 平滑-交集
+float sintersectionSdf(float sdf1, float sdf2, float k) {
+    return smax(sdf1, sdf2, k);
+}
+
+// 平滑-差集 sdf1 - sdf2
+float sdifferenceSdf(float sdf1, float sdf2, float k) {
+    return smax(sdf1, -sdf2, k);
+}
+
+// 混合
+float mixSdf(float sdf1, float sdf2, float t) {
+    return mix(sdf1, sdf2, t);
+}
+
 // ======================= SDF ======================= 
+
+// Half Plane
+// x轴-半平面，右手定则，上半部分 里面；
+float sdfHP(vec2 coord) {
+    return -coord.y;
+}
+
+float sdfHP(vec2 coord, float angle) {
+    coord = rotate(coord, angle);
+
+    return sdfHP(coord);
+}
+
+float sdfHP(vec2 coord, vec2 center, float angle) {
+    
+    coord = translate(coord, center);
+    coord = rotate(coord, angle);
+    
+    return sdfHP(coord);
+}
+
+// 指定单位向量 的 半平面
+float sdfHP(vec2 coord, vec2 dir) {
+    
+    coord = rotate(coord, dir);
+    
+    return sdfHP(coord);
+}
+
+// 过两个点的半平面
+float sdfHP(vec2 coord, vec2 start, vec2 end) {
+    coord = translate(coord, start);
+    vec2 dir = normalize(end - start);
+    return sdfHP(coord, dir);
+}
+
+// 有向线段：有一个端点在 原点，x轴-正向
+// 逆时针 为 里面
+float sdfHPSegment(vec2 coord, float len) {
+    
+    float proj = clamp(coord.x, 0.0, len);
+    
+    float s = sign(-coord.y);
+    
+    coord -= proj * vec2(1.0, 0.0);
+    
+    return s * length(coord);
+}
+
+// 有向线段：有一个端点在 原点，x轴-正向
+// 逆时针 为 里面
+float sdfHPSegment(vec2 coord, vec2 start, vec2 end) {
+    float len = length(end - start);
+    vec2 dir = (end - start) / len;
+    
+    coord = translate(coord, start);
+    coord = rotate(coord, dir);
+
+    return sdfHPSegment(coord, len);
+}
+
+// 线段
+float sdfSegment(vec2 coord, vec2 start, vec2 end) {
+    return -abs(sdfHPSegment(coord, start, end));
+}
 
 float sdfCircle(vec2 coord, float r) {
     return length(coord) - r;
@@ -161,7 +279,7 @@ float sdfEllipse2(vec2 coord, vec2 ab)
 
 float sdfEllipse2(vec2 coord, vec2 center, vec2 ab)
 {
-    coord = translate(coord, ab);
+    coord = translate(coord, center);
 
     return sdfEllipse2(coord, ab);
 }
@@ -178,6 +296,82 @@ float sdfEllipse2(vec2 coord, vec2 center, vec2 s, vec2 ab)
 
     return d;
 }
+
+// 用 半平面 模拟 半圆
+float sdfHalfCircleApprox(vec2 coord, vec2 center, float angle, float r) {
+    float c = sdfCircle(coord, center, r);
+    
+    vec2 dir = vec2(cos(angle), sin(angle));
+    float hp = sdfHP(coord, center, center + dir);
+    
+    return intersectionSdf(hp, c);
+}
+
+// 用 半平面 模拟 弓形
+float sdfBowApprox(vec2 coord, vec2 center, float angle, float r, float r1) {
+    float c = sdfCircle(coord, center, r);
+    
+    vec2 dir = vec2(cos(angle), sin(angle));
+    
+    vec2 start = center + r1 * vec2(-dir.y, dir.x);
+    vec2 end = start + dir;
+    float hp = sdfHP(coord, start, end);
+    
+    return intersectionSdf(hp, c);
+}
+
+// 用 半平面 模拟 扇形
+float sdfPieApprox(vec2 coord, vec2 center, float r, float angle1, float angle2) {
+    float c = sdfCircle(coord, center, r);
+    float hp1 = sdfHP(coord, center, angle1);
+    float hp2 = sdfHP(coord, center, angle2);
+    
+    float d = c;
+
+    d = intersectionSdf(d, hp1);
+    d = intersectionSdf(d, complementSdf(hp2));
+    return d;
+}
+
+// 用 半平面 模拟 三角形
+// 逆时针的 3个点
+float sdfTriApprox(vec2 coord, vec2 p1, vec2 p2, vec2 p3) {
+    float hp1 = sdfHP(coord, p1, p2);
+    float hp2 = sdfHP(coord, p2, p3);
+    float hp3 = sdfHP(coord, p3, p1);    
+    
+    float d = hp1;
+    d = intersectionSdf(d, hp2);
+    d = intersectionSdf(d, hp3);
+    return d;
+}
+
+// 用 半平面 模拟 矩形
+float sdfRectApprox(vec2 coord, vec2 center, vec2 extent, float angle) {
+
+    coord = translate(coord, center);
+    coord = rotate(coord, angle);
+
+    vec2 lt = vec2(-extent.x, extent.y);
+    vec2 lb = vec2(-extent.x, -extent.y);
+    vec2 rb = vec2(extent.x, -extent.y);
+    vec2 rt = vec2(extent.x, extent.y);
+    
+    float hp1 = sdfHP(coord, lt, lb);
+
+    float hp2 = sdfHP(coord, lb, rb);
+
+    float hp3 = sdfHP(coord, rb, rt);
+
+    float hp4 = sdfHP(coord, rt, lt);
+
+    float d = hp1;
+    d = intersectionSdf(d, hp2);
+    d = intersectionSdf(d, hp3);
+    d = intersectionSdf(d, hp4);
+    return d;
+}
+
 // ======================= 可视化 方法 ======================= 
 
 // 等值线
@@ -207,6 +401,23 @@ void showEllipseSdf(out vec3 color, vec2 coord, vec2 center, vec2 s, vec2 ab, in
         } else {
             d = sdfEllipse2(m, center, s, ab);
         }
+
+        float len = length(coord - m);
+        
+        len = uv(len);
+        d = uv(d);
+
+        color = mix(color, vec3(1.0, 1.0, 0.0), 1.0 - smoothstep(0.0, 0.005, abs(len - abs(d)) - 0.0025));
+        
+        color = mix(color, vec3(1.0, 1.0, 0.0), 1.0 - smoothstep(0.0, 0.005, len - 0.015));
+    }
+}
+
+// 按鼠标左键，能显示 该点的 sdf 圆
+void showHPSdf(out vec3 color, vec2 coord, vec2 start, vec2 end) {
+    if ( iMouse.z > 0.001 ) {
+        vec2 m = iMouse.xy;
+        float d = sdfHP(m, start, end);
 
         float len = length(coord - m);
         
@@ -282,46 +493,23 @@ float aa_4(float d) {
     return clamp(0.5 - 0.5 * d, 0.0, 1.0);
 }
 
-// ================ Demo
+// =========== Demo
 
-void mainImage( out vec4 fragColor, in vec2 fragCoord )
+void mainImage(out vec4 fragColor, in vec2 fragCoord )
 {
     vec2 coord = fragCoord;
 
-    // 平移 到 屏幕中心
-    vec2 center = 0.5 * iResolution.xy;
-    
-    float a;
-    vec2 s, ab;
+    vec3 color = vec3(0.0, 0.0, 0.0);
+    vec3 fg = vec3(0.0, 1.0, 0.0);
 
-    ab = vec2(5.0, 2.0);
-    s = vec2(1.0 * 30.0, 1.0 * 30.0);
+    float d1 = sdfHPSegment(coord, vec2(150.0, 150.0), vec2(280.0, 280.0));
+    color = mix(color, fg, aa_3(d1));
 
-    float d = 0.0;
-    
-    int method;
-    
-    method = 1;
-
-    // method = 2;
-    
-    if (method == 1) {
-        d = sdfEllipse1(coord, center, s, ab);
-    } else {
-        d = sdfEllipse2(coord, center, s, ab);
-    }
-
-    // 单位是像素，天然抗锯齿
-    a = -d;
-    
-    vec3 bg = vec3(1.0, 0.0, 0.0);
-    vec3 fg = vec3(1.0, 1.0, 1.0);
-    
-    vec3 color = mix(bg, fg, a);
+    float d2 = sdfSegment(coord, vec2(150.0, 150.0), vec2(280.0, 280.0));
+    // color = mix(color, fg, aa_3(d2));
 
     // 等高线
-    // color = isovalue(d);
-    // showEllipseSdf(color, coord, center, s, ab, method);
-    
+    // color = isovalue(d1);
+
     fragColor = vec4(color, 1.0);
 }
