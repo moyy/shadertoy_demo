@@ -164,7 +164,7 @@ float sdfHPSegment(vec2 coord, float len) {
     
     float proj = clamp(coord.x, 0.0, len);
     
-    float s = sign(-coord.y);
+    float s = coord.y > 0.0 ? -1.0 : 1.0;
     
     coord -= proj * vec2(1.0, 0.0);
     
@@ -505,52 +505,50 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord )
     vec3 color = vec3(0.0, 0.0, 0.0);
     vec3 fg = vec3(0.0, 1.0, 0.0);
 
-    float angle;
+    float now, angle;
     
-    angle = 2.0 * 3.14159265 * sin(iTime);
+    now = 1.0;
+    // now = sin(iTime);
+
+    angle = 3.14159265 / 6.0;
+    // angle = 3.14159265 / 10.0 * sin(now);
+
     float d1 = sdfHalfCircleApprox(coord, vec2(100.0, 100.0), angle, 50.0);
-    color = mix(color, fg, aa_3(d1));
+    color = mix(color, fg, aa_1(d1));
 
-    angle = 3.14159265 / 6.0 * sin(iTime);
-    float d2 = sdfBowApprox(coord, vec2(250.0, 100.0), angle, 50.0, 30.0 * sin(iTime));
-    color = mix(color, fg, aa_3(d2));
+    float d2 = sdfBowApprox(coord, vec2(250.0, 100.0), angle, 50.0, 30.0 * now);
+    color = mix(color, fg, aa_1(d2));
 
-    angle = 2.0 * 3.14159265 * abs(0.5 * sin(iTime));
     float d3 = sdfPieApprox(coord, vec2(400.0, 100.0), 50.0, 0.0, angle);
-    color = mix(color, fg, aa_3(d3));
+    color = mix(color, fg, aa_1(d3));
 
     float d4 = sdfTriApprox(coord, vec2(100.0, 200.0), vec2(200.0, 200.0), vec2(150.0, 250.0));
-    color = mix(color, fg, aa_3(d4));
+    color = mix(color, fg, aa_1(d4));
 
-    angle = 3.14159265 * sin(iTime);
     float d5 = sdfRectApprox(coord, vec2(300.0, 250.0), vec2(30.0, 60.0), angle);
-    color = mix(color, fg, aa_3(d5));
+    color = mix(color, fg, aa_1(d5));
 
-    angle = 2.0 * 3.14159265 * abs(0.5 * sin(iTime));
     float d6 = sdfPieApprox(coord, vec2(400.0, 250.0), 50.0, 0.0, angle);
     d6 = annularSdf(d6, 6.0);
-    color = mix(color, fg, aa_3(d6));
+    color = mix(color, fg, aa_1(d6));
 
     float d7 = sdfTriApprox(coord, vec2(100.0, 250.0), vec2(200.0, 270.0), vec2(150.0, 300.0));
     d7 = annularSdf(d7, 6.0);
-    color = mix(color, fg, aa_3(d7));
+    color = mix(color, fg, aa_1(d7));
 
-    angle = 3.14159265 * sin(iTime);
     float d8 = sdfRectApprox(coord, vec2(300.0, 350.0), vec2(30.0, 60.0), angle);
     d8 = annularSdf(d8, 6.0);
-    color = mix(color, fg, aa_3(d8));
+    color = mix(color, fg, aa_1(d8));
 
-    angle = 3.14159265 / 10.0 * sin(iTime);
-    float d9 = sdfBowApprox(coord, vec2(200.0, 50.0), angle, 30.0, 15.0 * sin(iTime));
+    float d9 = sdfBowApprox(coord, vec2(200.0, 50.0), angle, 30.0, 15.0 * now);
     d9 = annularSdf(d9, 6.0);
-    color = mix(color, fg, aa_3(d9));
+    color = mix(color, fg, aa_1(d9));
 
     // blend
     float d10 = sdfEllipse2(coord, vec2(100.0, 400.0), vec2(75, 30));
-    angle = 3.14159265 / 6.0;
     float d11 = sdfRectApprox(coord, vec2(100.0, 400.0), vec2(30.0, 60.0), angle);
-    float d12 = mixSdf(d10, d11, abs(sin(iTime)));
-    color = mix(color, fg, aa_3(d12));
+    float d12 = mixSdf(d10, d11, abs(now));
+    color = mix(color, fg, aa_1(d12));
 
     // smooth union
     float d13 = sdfCircle(coord, vec2(200.0, 530.0), 70.0);
@@ -561,10 +559,10 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord )
     d15 = unionSdf(d13, d14); 
     d15 = sunionSdf(d13, d14, 0.4);
     
-    color = mix(color, fg, aa_3(d15));
+    color = mix(color, fg, aa_1(d15));
 
     // 等高线
-    // color = isovalue(d4);
+    color = isovalue(d2);
 
     fragColor = vec4(color, 1.0);
 }

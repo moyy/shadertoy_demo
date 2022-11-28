@@ -164,8 +164,8 @@ float sdfHPSegment(vec2 coord, float len) {
     
     float proj = clamp(coord.x, 0.0, len);
     
-    float s = sign(-coord.y);
-    
+    float s = coord.y >= 0.0 ? -1.0 : 1.0;
+
     coord -= proj * vec2(1.0, 0.0);
     
     return s * length(coord);
@@ -174,8 +174,9 @@ float sdfHPSegment(vec2 coord, float len) {
 // 有向线段：有一个端点在 原点，x轴-正向
 // 逆时针 为 里面
 float sdfHPSegment(vec2 coord, vec2 start, vec2 end) {
-    float len = length(end - start);
-    vec2 dir = (end - start) / len;
+    end -= start;
+    float len = length(end);
+    vec2 dir = end / len;
     
     coord = translate(coord, start);
     coord = rotate(coord, dir);
@@ -185,7 +186,7 @@ float sdfHPSegment(vec2 coord, vec2 start, vec2 end) {
 
 // 线段
 float sdfSegment(vec2 coord, vec2 start, vec2 end) {
-    return -abs(sdfHPSegment(coord, start, end));
+    return abs(sdfHPSegment(coord, start, end));
 }
 
 float sdfCircle(vec2 coord, float r) {
@@ -499,17 +500,17 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord )
 {
     vec2 coord = fragCoord;
 
-    vec3 color = vec3(0.0, 0.0, 0.0);
-    vec3 fg = vec3(0.0, 1.0, 0.0);
+    vec3 color = vec3(1.0, 1.0, 1.0);
+    vec3 fg = vec3(1.0, 0.0, 0.0);
 
-    float d1 = sdfHPSegment(coord, vec2(150.0, 150.0), vec2(280.0, 280.0));
-    color = mix(color, fg, aa_3(d1));
+    // float d1 = sdfHPSegment(coord, vec2(150.0, 150.0), vec2(280.0, 280.0));
+    // color = mix(color, fg, aa_3(d1));
 
     float d2 = sdfSegment(coord, vec2(150.0, 150.0), vec2(280.0, 280.0));
-    // color = mix(color, fg, aa_3(d2));
+    color = mix(color, fg, aa_3(d2));
 
     // 等高线
-    // color = isovalue(d1);
+    // color = isovalue(d2);
 
     fragColor = vec4(color, 1.0);
 }
