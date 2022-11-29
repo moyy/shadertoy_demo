@@ -302,19 +302,19 @@ float sdfHalfCircleApprox(vec2 coord, vec2 center, float angle, float r) {
     float c = sdfCircle(coord, center, r);
     
     vec2 dir = vec2(cos(angle), sin(angle));
-    float hp = sdfHPSegment(coord, center, center + dir);
+    float hp = sdfHPSegment(coord, center - r * dir, center + r * dir);
     
     return intersectionSdf(hp, c);
 }
 
 // 用 有向线段 模拟 弓形
-float sdfBowApprox(vec2 coord, vec2 center, float angle, float r, float r1) {
+float sdfBowApprox(vec2 coord, vec2 center, float angle, float r) {
     float c = sdfCircle(coord, center, r);
     
     vec2 dir = vec2(cos(angle), sin(angle));
     
-    vec2 start = center + r1 * vec2(-dir.y, dir.x);
-    vec2 end = start + dir;
+    vec2 start = center + r * dir;
+    vec2 end = center + r * vec2(dir.x, -dir.y);
     float hp = sdfHPSegment(coord, start, end);
     
     return intersectionSdf(hp, c);
@@ -498,6 +498,7 @@ float aa_4(float d) {
 
 // =========== Demo
 
+// 编辑器 https://sparkar.facebook.com/ar-studio/learn/patch-editor/shader-patches/introduction-sdf-patches/
 void mainImage(out vec4 fragColor, in vec2 fragCoord )
 {
     vec2 coord = fragCoord;
@@ -508,61 +509,63 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord )
     float now, angle;
     
     now = 1.0;
-    // now = sin(iTime);
+    now = sin(0.1 * iTime);
 
     angle = 3.14159265 / 6.0;
-    // angle = 3.14159265 / 10.0 * sin(now);
+    angle = 3.14159265 / 1.0 * now;
 
     float d1 = sdfHalfCircleApprox(coord, vec2(100.0, 100.0), angle, 50.0);
-    color = mix(color, fg, aa_1(d1));
+    color = mix(color, fg, aa_4(d1));
 
-    float d2 = sdfBowApprox(coord, vec2(250.0, 100.0), angle, 50.0, 30.0 * now);
-    color = mix(color, fg, aa_1(d2));
+    float d2 = sdfBowApprox(coord, vec2(250.0, 100.0), angle, 50.0);
+    color = mix(color, fg, aa_4(d2));
 
     float d3 = sdfPieApprox(coord, vec2(400.0, 100.0), 50.0, 0.0, angle);
-    color = mix(color, fg, aa_1(d3));
+    color = mix(color, fg, aa_4(d3));
 
     float d4 = sdfTriApprox(coord, vec2(100.0, 200.0), vec2(200.0, 200.0), vec2(150.0, 250.0));
-    color = mix(color, fg, aa_1(d4));
+    color = mix(color, fg, aa_4(d4));
 
     float d5 = sdfRectApprox(coord, vec2(300.0, 250.0), vec2(30.0, 60.0), angle);
-    color = mix(color, fg, aa_1(d5));
+    color = mix(color, fg, aa_4(d5));
 
     float d6 = sdfPieApprox(coord, vec2(400.0, 250.0), 50.0, 0.0, angle);
     d6 = annularSdf(d6, 6.0);
-    color = mix(color, fg, aa_1(d6));
+    color = mix(color, fg, aa_4(d6));
 
     float d7 = sdfTriApprox(coord, vec2(100.0, 250.0), vec2(200.0, 270.0), vec2(150.0, 300.0));
     d7 = annularSdf(d7, 6.0);
-    color = mix(color, fg, aa_1(d7));
+    color = mix(color, fg, aa_4(d7));
 
     float d8 = sdfRectApprox(coord, vec2(300.0, 350.0), vec2(30.0, 60.0), angle);
     d8 = annularSdf(d8, 6.0);
-    color = mix(color, fg, aa_1(d8));
+    color = mix(color, fg, aa_4(d8));
 
-    float d9 = sdfBowApprox(coord, vec2(200.0, 50.0), angle, 30.0, 15.0 * now);
+    float d9 = sdfBowApprox(coord, vec2(200.0, 50.0), angle, 30.0);
     d9 = annularSdf(d9, 6.0);
-    color = mix(color, fg, aa_1(d9));
+    color = mix(color, fg, aa_4(d9));
 
     // blend
     float d10 = sdfEllipse2(coord, vec2(100.0, 400.0), vec2(75, 30));
     float d11 = sdfRectApprox(coord, vec2(100.0, 400.0), vec2(30.0, 60.0), angle);
     float d12 = mixSdf(d10, d11, abs(now));
-    color = mix(color, fg, aa_1(d12));
+    color = mix(color, fg, aa_4(d12));
 
     // smooth union
     float d13 = sdfCircle(coord, vec2(200.0, 530.0), 70.0);
-    
     float d14 = sdfCircle(coord, vec2(340.0, 530.0), 70.0);
-    
     float d15;
     d15 = unionSdf(d13, d14); 
     d15 = sunionSdf(d13, d14, 0.4);
-    
-    color = mix(color, fg, aa_1(d15));
+    color = mix(color, fg, aa_4(d15));
+
+    vec2 start16 = vec2(560.0, 120.0);
+    vec2 end16 = start16 + 100.0 * vec2(sin(0.05 * iTime), cos(0.05 * iTime));
+    float d16 = sdfSegment(coord, start16, end16);
+    color = mix(color, fg, aa_4(abs(d16)));
 
     // 等高线
-    color = isovalue(d2);
+    // color = isovalue(d1);
 
     fragColor = vec4(color, 1.0);
 }

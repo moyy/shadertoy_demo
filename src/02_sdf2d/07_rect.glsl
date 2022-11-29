@@ -158,6 +158,36 @@ float sdfHP(vec2 coord, vec2 start, vec2 end) {
     return sdfHP(coord, dir);
 }
 
+// 有向线段：有一个端点在 原点，x轴-正向
+// 逆时针 为 里面
+float sdfHPSegment(vec2 coord, float len) {
+    
+    float proj = clamp(coord.x, 0.0, len);
+    
+    float s = coord.y > 0.0 ? -1.0 : 1.0;
+    
+    coord -= proj * vec2(1.0, 0.0);
+    
+    return s * length(coord);
+}
+
+// 有向线段：有一个端点在 原点，x轴-正向
+// 逆时针 为 里面
+float sdfHPSegment(vec2 coord, vec2 start, vec2 end) {
+    float len = length(end - start);
+    vec2 dir = (end - start) / len;
+    
+    coord = translate(coord, start);
+    coord = rotate(coord, dir);
+
+    return sdfHPSegment(coord, len);
+}
+
+// 线段
+float sdfSegment(vec2 coord, vec2 start, vec2 end) {
+    return -abs(sdfHPSegment(coord, start, end));
+}
+
 float sdfCircle(vec2 coord, float r) {
     return length(coord) - r;
 }
@@ -267,17 +297,17 @@ float sdfEllipse2(vec2 coord, vec2 center, vec2 s, vec2 ab)
     return d;
 }
 
-// 用 半平面 模拟 半圆
+// 用 有向线段 模拟 半圆
 float sdfHalfCircleApprox(vec2 coord, vec2 center, float angle, float r) {
     float c = sdfCircle(coord, center, r);
     
     vec2 dir = vec2(cos(angle), sin(angle));
-    float hp = sdfHP(coord, center, center + dir);
+    float hp = sdfHPSegment(coord, center - r * dir, center + r * dir);
     
     return intersectionSdf(hp, c);
 }
 
-// 用 半平面 模拟 弓形
+// 用 有向线段 模拟 弓形
 float sdfBowApprox(vec2 coord, vec2 center, float angle, float r) {
     float c = sdfCircle(coord, center, r);
     
@@ -285,16 +315,19 @@ float sdfBowApprox(vec2 coord, vec2 center, float angle, float r) {
     
     vec2 start = center + r * dir;
     vec2 end = center + r * vec2(dir.x, -dir.y);
-    float hp = sdfHP(coord, start, end);
+    float hp = sdfHPSegment(coord, start, end);
     
     return intersectionSdf(hp, c);
 }
 
-// 用 半平面 模拟 扇形
+// 用 有向线段 模拟 扇形
 float sdfPieApprox(vec2 coord, vec2 center, float r, float angle1, float angle2) {
+    
     float c = sdfCircle(coord, center, r);
-    float hp1 = sdfHP(coord, center, angle1);
-    float hp2 = sdfHP(coord, center, angle2);
+    
+    float hp1 = sdfHPSegment(coord, center, center + r * vec2(cos(angle1), sin(angle1)));
+
+    float hp2 = sdfHPSegment(coord, center, center + r * vec2(cos(angle2), sin(angle2)));
     
     float d = c;
 
@@ -303,12 +336,12 @@ float sdfPieApprox(vec2 coord, vec2 center, float r, float angle1, float angle2)
     return d;
 }
 
-// 用 半平面 模拟 三角形
+// 用 有向线段 模拟 三角形
 // 逆时针的 3个点
 float sdfTriApprox(vec2 coord, vec2 p1, vec2 p2, vec2 p3) {
-    float hp1 = sdfHP(coord, p1, p2);
-    float hp2 = sdfHP(coord, p2, p3);
-    float hp3 = sdfHP(coord, p3, p1);    
+    float hp1 = sdfHPSegment(coord, p1, p2);
+    float hp2 = sdfHPSegment(coord, p2, p3);
+    float hp3 = sdfHPSegment(coord, p3, p1);    
     
     float d = hp1;
     d = intersectionSdf(d, hp2);
@@ -316,7 +349,7 @@ float sdfTriApprox(vec2 coord, vec2 p1, vec2 p2, vec2 p3) {
     return d;
 }
 
-// 用 半平面 模拟 矩形
+// 用 有向线段 模拟 矩形
 float sdfRectApprox(vec2 coord, vec2 center, vec2 extent, float angle) {
 
     coord = translate(coord, center);
@@ -327,19 +360,94 @@ float sdfRectApprox(vec2 coord, vec2 center, vec2 extent, float angle) {
     vec2 rb = vec2(extent.x, -extent.y);
     vec2 rt = vec2(extent.x, extent.y);
     
-    float hp1 = sdfHP(coord, lt, lb);
+    float hp1 = sdfHPSegment(coord, lt, lb);
 
-    float hp2 = sdfHP(coord, lb, rb);
+    float hp2 = sdfHPSegment(coord, lb, rb);
 
-    float hp3 = sdfHP(coord, rb, rt);
+    float hp3 = sdfHPSegment(coord, rb, rt);
 
-    float hp4 = sdfHP(coord, rt, lt);
+    float hp4 = sdfHPSegment(coord, rt, lt);
 
     float d = hp1;
     d = intersectionSdf(d, hp2);
     d = intersectionSdf(d, hp3);
     d = intersectionSdf(d, hp4);
     return d;
+}
+
+// https://zhuanlan.zhihu.com/p/420700051
+// https://iquilezles.org/articles/distfunctions2d/
+float sdfRect(vec2 coord, vec2 extent )
+{
+    vec2 d = abs(coord) - extent;
+    return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0);
+}
+
+// https://iquilezles.org/articles/distfunctions2d/
+float sdfRect(vec2 coord, vec2 center, vec2 extent, float angle)
+{
+    coord = translate(coord, center);
+    coord = rotate(coord, angle);
+    return sdfRect(coord, extent);
+}
+
+// https://zhuanlan.zhihu.com/p/420700051
+// https://iquilezles.org/articles/distfunctions2d/
+// 限制：r 每个分量 不能 超过 min(extent)
+// 限制：只能画 圆 的 圆角矩形
+float sdfFastRoundRect(vec2 coord, vec2 extent, vec4 r)
+{
+    r.xy = (coord.x > 0.0) ? r.xy : r.zw;
+    r.x  = (coord.y > 0.0) ? r.x  : r.y;
+    
+    vec2 q = abs(coord) - extent + r.x;
+
+    return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r.x;
+}
+
+// https://iquilezles.org/articles/distfunctions2d/
+float sdfFastRoundRect(vec2 coord, vec2 center, vec2 extent, vec4 r, float angle)
+{
+    coord = translate(coord, center);
+    coord = rotate(coord, angle);
+
+    return sdfFastRoundRect(coord, extent, r);
+}
+
+// 组合 画 圆角矩形
+// top = (左, 上，上，右)
+// bottom = (右，下，下，左)
+float sdfRoundRect(vec2 coord, vec2 extent, vec4 top, vec4 bottom)
+{
+    // TODO
+    return 0.0;
+}
+
+float sdfRoundRect(vec2 coord, vec2 center, vec2 extent, vec4 top, vec4 bottom, float angle)
+{
+    coord = translate(coord, center);
+    coord = rotate(coord, angle);
+
+    return sdfRoundRect(coord, extent, top, bottom);
+}
+
+// 边框大小 size = 上，右，下，左
+float sdfBorder(vec2 coord, vec2 extent, vec4 top, vec4 bottom, vec4 size)
+{
+    float e = sdfRoundRect(coord, extent, top, bottom);
+
+    // TODO 中心点，extent，top，bottom 都要 做 调整
+    float i = sdfRoundRect(coord, extent, top, bottom);
+    
+    return differenceSdf(e, i);
+}
+
+float sdfBorder(vec2 coord, vec2 center, vec2 extent, vec4 top, vec4 bottom, vec4 size, float angle)
+{
+    coord = translate(coord, center);
+    coord = rotate(coord, angle);
+
+    return sdfBorder(coord, extent, top, bottom, size);
 }
 
 // ======================= 可视化 方法 ======================= 
@@ -464,6 +572,7 @@ float aa_4(float d) {
 }
 
 // =========== Demo
+
 void mainImage(out vec4 fragColor, in vec2 fragCoord )
 {
     vec2 coord = fragCoord;
@@ -474,58 +583,23 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord )
     float now, angle;
     
     now = 1.0;
-    now = sin(0.5 * iTime);
+    now = sin(iTime);
 
     angle = 3.14159265 / 6.0;
-    angle = 3.14159265 / 1.0 * now;
-
-    float d1 = sdfHalfCircleApprox(coord, vec2(100.0, 100.0), angle, 50.0);
+    angle = 3.14159265 * sin(now);
+   
+    float d1 = sdfRectApprox(coord, vec2(100.0, 100.0), vec2(30.0, 60.0), angle);
     color = mix(color, fg, aa_3(d1));
 
-    float d2 = sdfBowApprox(coord, vec2(250.0, 100.0), angle, 50.0);
+    float d2 = sdfRect(coord, vec2(500.0, 100.0), vec2(30.0, 60.0), angle);
     color = mix(color, fg, aa_3(d2));
-
-    float d3 = sdfPieApprox(coord, vec2(400.0, 100.0), 50.0, 0.0, angle);
+    
+    float d3 = sdfFastRoundRect(coord, vec2(300.0, 450.0), vec2(120.0, 250.0), vec4(80.0, 40.0, 40.0, 70.0), angle);
+    
     color = mix(color, fg, aa_3(d3));
 
-    float d4 = sdfTriApprox(coord, vec2(100.0, 200.0), vec2(200.0, 200.0), vec2(150.0, 250.0));
-    color = mix(color, fg, aa_3(d4));
-
-    float d5 = sdfRectApprox(coord, vec2(300.0, 250.0), vec2(30.0, 60.0), angle);
-    color = mix(color, fg, aa_3(d5));
-
-    float d6 = sdfPieApprox(coord, vec2(400.0, 250.0), 50.0, 0.0, angle);
-    d6 = annularSdf(d6, 6.0);
-    color = mix(color, fg, aa_3(d6));
-
-    float d7 = sdfTriApprox(coord, vec2(100.0, 250.0), vec2(200.0, 270.0), vec2(150.0, 300.0));
-    d7 = annularSdf(d7, 6.0);
-    color = mix(color, fg, aa_3(d7));
-
-    float d8 = sdfRectApprox(coord, vec2(300.0, 350.0), vec2(30.0, 60.0), angle);
-    d8 = annularSdf(d8, 6.0);
-    color = mix(color, fg, aa_3(d8));
-
-    float d9 = sdfBowApprox(coord, vec2(200.0, 50.0), angle, 30.0);
-    d9 = annularSdf(d9, 6.0);
-    color = mix(color, fg, aa_3(d9));
-
-    // blend
-    float d10 = sdfEllipse2(coord, vec2(100.0, 400.0), vec2(75, 30));
-    float d11 = sdfRectApprox(coord, vec2(100.0, 400.0), vec2(30.0, 60.0), angle);
-    float d12 = mixSdf(d10, d11, abs(now));
-    color = mix(color, fg, aa_3(d12));
-
-    // smooth union
-    float d13 = sdfCircle(coord, vec2(200.0, 530.0) - 70.0 * now * vec2(1.0, 0.0), 70.0);
-    float d14 = sdfCircle(coord, vec2(340.0, 530.0), 70.0);
-    float d15;
-    d15 = unionSdf(d13, d14); 
-    d15 = sunionSdf(d13, d14, 0.4);
-    color = mix(color, fg, aa_3(d15));
-
     // 等高线
-    // color = isovalue(d11);
+    // color = isovalue(d3);
 
     fragColor = vec4(color, 1.0);
 }
