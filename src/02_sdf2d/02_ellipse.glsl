@@ -1,23 +1,8 @@
-// 椭圆 sdf 的 精确计算 和 近似模拟 https://iquilezles.org/articles/ellipsedist/
 
-// 上篇文章的 shader 实现 https://www.shadertoy.com/view/4lsXDN
-
-// 椭圆 sdf 的 另一种 估算法 https://blog.chatfield.io/simple-method-for-distance-to-ellipse/
-
-// 上篇文章的 去三角函数 的 版本 https://github.com/0xfaded/ellipse_demo/issues/1
-
-// 上篇文章的 shader 实现 https://www.shadertoy.com/view/tttfzr
-
-// 点到 椭圆 距离 的 数学推导 和 估算框架 https://www.geometrictools.com/Documentation/DistancePointEllipseEllipsoid.pdf
-    
-
+// 椭圆 sdf 近似公式 https://github.com/moyy/e_documents/blob/main/cg/math/ellipse_sdf_approx.md
 
 // ======================= 实用方法 ======================= 
 
-// 2D 叉乘，正数 逆时针
-float cross2d(vec2 u, vec2 v) {
-    return u.x * v.y - u.y * v.x;
-}
 // ======================= 坐标-变换 ======================= 
 
 // 1像素 对应的 uv 坐标
