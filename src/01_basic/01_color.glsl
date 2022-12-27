@@ -27,17 +27,17 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     vec3 c;
 
     // 预期 看到颜色 vec4(127, 0, 0, 255)
-    c = vec3(1.0, 0.0, 0.0);
+    // c = vec3(1.0, 0.0, 0.0);
     
     // 预期 看到颜色 vec4([0, 127], [0, 127], 0, 255)
     // c = vec3(norm(fragCoord), 0.0);
 
-    // c = vec3(abs(norm(fragCoord)), 0.0);
+    c = vec3(abs(norm(fragCoord)), 0.0);
 
 
     // 预期 看到变化的颜色
     // abs 是为了 让 [-1, 0] 能看到
-    // c = vec3((abs(sin(iTime))) * norm(fragCoord), 0.0);
+     c = vec3((abs(sin(iTime))) * norm(fragCoord), 0.0);
 
     fragColor = vec4(c, 1.0);
 }

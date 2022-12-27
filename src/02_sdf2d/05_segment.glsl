@@ -500,14 +500,23 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord )
 {
     vec2 coord = fragCoord;
 
-    vec3 color = vec3(1.0, 1.0, 1.0);
+    vec3 color = vec3(0.0, 1.0, 0.0);
     vec3 fg = vec3(1.0, 0.0, 0.0);
 
     // float d1 = sdfHPSegment(coord, vec2(150.0, 150.0), vec2(280.0, 280.0));
     // color = mix(color, fg, aa_3(d1));
 
-    float d2 = sdfSegment(coord, vec2(150.0, 150.0), vec2(280.0, 280.0));
-    color = mix(color, fg, aa_3(d2));
+    vec2 s = vec2(250.0, 250.0);
+    
+    float t = 0.1 * iTime;
+    
+    vec2 e = s + 200.0 * vec2(cos(t), sin(t));
+    
+    float d2 = sdfSegment(coord, s, e);
+
+    float a = smoothstep(-2.0, 0.0, -d2);
+    
+    color = mix(color, fg, clamp(a, 0.0, 1.0));
 
     // 等高线
     // color = isovalue(d2);

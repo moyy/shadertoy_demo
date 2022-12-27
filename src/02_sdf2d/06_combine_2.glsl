@@ -565,7 +565,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord )
     color = mix(color, fg, aa_4(abs(d16)));
 
     // 等高线
-    // color = isovalue(d1);
+    color = isovalue(d5);
 
     fragColor = vec4(color, 1.0);
 }

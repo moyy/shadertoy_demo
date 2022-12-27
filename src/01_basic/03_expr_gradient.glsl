@@ -5,7 +5,7 @@ vec2 exprDfdx(vec2 coord)
 {
     float x = coord.x;
 
-    // x-偏导数 是 2 * x
+    // x-偏导数 是 x^2 = 2 * x
     float c = dFdx(x * x);
     
     return vec2(0.5 * c / iResolution.x, 0.0);

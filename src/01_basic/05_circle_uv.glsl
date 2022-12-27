@@ -123,7 +123,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 
     // a = step(d, r);
     
-    // a = aa_1(d);
+    a = aa_1(d);
     
     // a = aa_2(d);
     

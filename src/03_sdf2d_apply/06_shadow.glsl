@@ -1,1 +1,0 @@
-// https://github.com/ronja-tutorials/ShaderTutorials/blob/master/Assets/037_SDF_2D_Shadows/2D_SDF.cginc

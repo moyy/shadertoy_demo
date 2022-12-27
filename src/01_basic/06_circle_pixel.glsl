@@ -160,12 +160,12 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     // 缩放系数下 的 抗锯齿
     // 常见的变换中，只有 scale 会 改变 面积
     
-    // r = 5.0;
-    // s = vec2(1.0 * 30.0, 1.0 * 30.0);
+    r = 5.0;
+    s = vec2(1.0 * 30.0, 1.0 * 30.0);
 
     // 非均匀缩放
-    // r = 5.0;
-    // s = vec2(1.0 * 20.0, 3.0 * 20.0);
+    r = 5.0;
+    s = vec2(1.0 * 15.0, 3.0 * 15.0);
 
     // d < 0 表示 在里面
     // 在 uv 坐标系下的 sdf
@@ -188,8 +188,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     // mix(a, b, t) t = 0 返回 a; t = 1 返回 b
     vec3 color = mix(bg, fg, a);
 
-    // color = isovalue(d);
-    // showClickSdf(color, coord, center, s, r);
+    color = isovalue(d);
+    showClickSdf(color, coord, center, s, r);
 
     fragColor = vec4(color, 1.0);
 }
